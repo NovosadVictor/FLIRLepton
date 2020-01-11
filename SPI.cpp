@@ -83,7 +83,6 @@ void SPIConnection::transfer(uint8_t *tx_buf, uint8_t *rx_buf, size_t length) {
     int ret;
 
     // clear memory
-    memset(rx_buf, 0, sizeof(uint8_t) * length);
     memset(&spi_, 0, sizeof(spi_));
 
     // set spi_ioc_transfer parameters

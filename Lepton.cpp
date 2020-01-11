@@ -7,9 +7,10 @@
 
 uint8_t *Lepton::getImage() {
     size_t length = 164;
-    size_t full_image_length = 4 * 60 * length;
 
-    uint8_t rx_buf[length];
+    uint8_t *rx_buf = (uint8_t *) malloc (length * sizeof(uint8_t));
+    uint8_t *tx_buf = (uint8_t *) malloc (length * sizeof(uint8_t));
+    memset(tx_buf, 0, sizeof(uint8_t) * length);
 
     unsigned int segment_number = 0;
     bool is_right_segment_number = false;
@@ -17,8 +18,8 @@ uint8_t *Lepton::getImage() {
     uint8_t *prev_segment = &image_[0];
     uint8_t *packet_pos = &image_[0];
 
-    while (packet_pos <= image_ + full_image_length - length) {
-        spi_conn_->transfer(NULL, rx_buf, length);
+    while (packet_pos <= image_ + (4 * 60 - 1) * length) {
+        spi_conn_->transfer(tx_buf, rx_buf, length);
 
         if ((rx_buf[0] & 0x0F) == 0x0F) {         // check if packet is broken
             is_right_segment_number = false;
