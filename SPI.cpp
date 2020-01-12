@@ -89,7 +89,7 @@ void SPIConnection::transfer(uint8_t *tx_buf, uint8_t *rx_buf, size_t length) {
     spi_.tx_buf = (unsigned long) tx_buf;
     spi_.rx_buf = (unsigned long) rx_buf;
     spi_.len = length;
-    spi_.delay_usecs = 0;
+    spi_.delay_usecs = (uint16_t) 6500;
     spi_.speed_hz = speed_;
     spi_.bits_per_word = bits_;
     spi_.cs_change = 0;

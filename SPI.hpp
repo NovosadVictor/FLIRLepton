@@ -20,7 +20,7 @@ public:
     SPIConnection(
             const char *device = "/dev/spidev0.0", // device path
             const uint8_t mode = SPI_CPOL | SPI_CPHA, // spi mode (Clock polarity and phase) default=CPOL|CPHA (3)
-            const int speed = 16000000, // spi speed (Hz)
+            const int speed = 18000000, // spi speed (Hz)
             uint8_t bits = 8, // bits per word, default=8
             bool print = true // print connection details
     );

@@ -11,19 +11,11 @@ int main(int argc, char const *argv[]) {
     SPIConnection spi_conn;
 
     if (spi_conn.is_connected()) {
-        uint8_t *image;
-
         Lepton camera(&spi_conn);
 
-        image = camera.getImage();
-
-        FILE *f = fopen("output.txt", "w");
-
-        for (int i = 0; i < 4 * 60 * 164; i++) {
-            fprintf(f, "%d ", image[i]);
+        for (int s = 0; s < 1000; s++) {
+            camera.getImage();
         }
-
-        fclose(f);
 
         return 0;
     }

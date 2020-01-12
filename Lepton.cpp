@@ -1,48 +1,83 @@
 //
 // Created by Victor Novosad on 11/01/2020.
 //
+#include <boost/thread.hpp>  // async
 
 #include "Lepton.hpp"
 
+static unsigned int img_index = 0;
 
-uint8_t *Lepton::getImage() {
-    size_t length = 164;
+void saveImage(uint8_t *image_buf, unsigned int index) {
+    char file_name[124];
+    snprintf(file_name, sizeof(file_name), "%d.txt", index);
 
-    uint8_t *rx_buf = (uint8_t *) malloc (length * sizeof(uint8_t));
-    uint8_t *tx_buf = (uint8_t *) malloc (length * sizeof(uint8_t));
-    memset(tx_buf, 0, sizeof(uint8_t) * length);
+    FILE *f = fopen(file_name, "w");
 
-    unsigned int segment_number = 0;
-    bool is_right_segment_number = false;
+    for (int i = 0; i < 240 * 164; i++) {
+        fprintf(f, "%d ", image_buf[i]);
+    }
 
-    uint8_t *prev_segment = &image_[0];
-    uint8_t *packet_pos = &image_[0];
+    fclose(f);
+}
 
-    while (packet_pos <= image_ + (4 * 60 - 1) * length) {
-        spi_conn_->transfer(tx_buf, rx_buf, length);
 
-        if ((rx_buf[0] & 0x0F) == 0x0F) {         // check if packet is broken
-            is_right_segment_number = false;
-            packet_pos = prev_segment;
-            continue;
-        }
+void Lepton::getImage() {
+    uint8_t status_bits = 0;
 
-        if (!(is_right_segment_number) && (rx_buf[1] == 20) && ((rx_buf[0] >> 4) == segment_number)) {      // check if segment is valid
-            is_right_segment_number = true;
-        }
+    int row;
+    int packet;
+    int packet_number, segment_number;
+    int current_segment_number;
+    bool valid_segment = false;
 
-        // if packet is valid - concatenate
-        memcpy(packet_pos, rx_buf, sizeof(uint8_t) * length);
-        packet_pos += length;
+    while (status_bits != 0x0F) {
+        spi_conn->transfer(NULL, rx_buf, FRAME_BUFFER_LEN);
 
-        // if it's the last packet of current segment and the segment is valid - concatenate
-        if ((is_right_segment_number) && (rx_buf[1] == 59)) {
-            prev_segment = packet_pos;
+        for (int packet_index = 0; packet_index < (FRAME_BUFFER_LEN / PACKET_BUFFER_LEN); packet_index++) {
+            packet = packet_index * PACKET_BUFFER_LEN;
 
-            is_right_segment_number = false;
-            segment_number += 1;
+            if ((rx_buf[packet] & 0x0F) == 0x0F) {
+                valid_segment = false;
+                continue;
+            }
+
+            packet_number = rx_buf[packet + 1];
+
+            if ((packet_number > 0) && !(valid_segment)) {
+                continue;
+            }
+
+            if (valid_segment && (packet_number == 0)) {
+                valid_segment = false;
+            }
+
+            // found start of the new segment
+            if (!(valid_segment) && (packet_number == 0) && ((packet + 60 * PACKET_BUFFER_LEN) < FRAME_BUFFER_LEN)) {
+                segment_number = rx_buf[packet + 20 * PACKET_BUFFER_LEN] >> 4;
+                if ((segment_number > 0) && (segment_number < 5) && (rx_buf[packet + 20 * PACKET_BUFFER_LEN + 1] == 20)) {
+                    valid_segment = true;
+                    current_segment_number = segment_number;
+                }
+            }
+
+            if (!valid_segment) {
+                continue;
+            }
+
+            row = packet_number + (segment_number - 1) * 60;
+            memcpy(image + row * PACKET_BUFFER_LEN, rx_buf + packet, PACKET_BUFFER_LEN);
+
+            if (packet_number == 59) {
+                status_bits |= (0x01 << (current_segment_number - 1));
+            }
         }
     }
 
-    return image_;
+    img_index += 1;
+
+    memcpy(copy_image, image, (4 * 60 * 164) * sizeof(uint8_t));
+    boost::thread t{saveImage, copy_image, img_index};
+    t.join();
+
+    return;
 }
